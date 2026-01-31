@@ -13,7 +13,7 @@ export const SalvageOptimizer: React.FC = () => {
      setAnalyzingItem(itemName);
      setAiResult(null);
      setModalOpen(true);
-     const result = await aiService.analyzeItem({ name: itemName } as any, null, undefined, 'ar');
+     const result = await aiService.analyzeItem({ name: itemName } as any, null, undefined);
      setAiResult(result);
   };
 

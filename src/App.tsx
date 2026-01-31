@@ -1,6 +1,5 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Layout } from './components/Layout';
-import { SimulationEngine } from './components/SimulationEngine';
 import { Dashboard } from './components/Dashboard';
 import { EventTimers } from './pages/EventTimers';
 import { InventoryManager } from './pages/InventoryManager';
@@ -30,7 +29,6 @@ function App() {
   return (
     <Router>
       <Layout>
-        <SimulationEngine />
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/strategies" element={<CommunityStrategies />} />

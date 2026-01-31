@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from 'react';
 import { useAccountStore } from '../store/useAccountStore';
-import { aiService } from '../services/ai.service';
 import { CurrencyDisplay } from '../components/CurrencyDisplay';
 import { 
   Briefcase, 

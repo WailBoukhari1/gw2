@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import type { MarketItem } from '../types';
 import { CurrencyDisplay } from './CurrencyDisplay';
 import { Clock, Star, Brain, Sparkles, Loader2, AlertTriangle, Lock, Zap } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import clsx from 'clsx';
 import { api } from '../services/api.service';
 import { aiService } from '../services/ai.service';
@@ -134,7 +134,7 @@ export const ItemCard: React.FC<Props> = ({ item }) => {
     setAnalyzing(true);
     try {
       const listings = await api.getListings(item.id);
-      const result = await aiService.analyzeItem(item, listings, investmentLimit, 'en');
+      const result = await aiService.analyzeItem(item, listings, investmentLimit);
       setAnalysis(result);
     } catch (err) {
       console.error(err);

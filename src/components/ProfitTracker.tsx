@@ -5,12 +5,10 @@ import { aiService } from '../services/ai.service';
 import { CurrencyDisplay } from './CurrencyDisplay';
 import { TrendingUp, Clock, AlertCircle, ShoppingCart, RefreshCw, BarChart2, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useTranslation } from 'react-i18next';
 import clsx from 'clsx';
 
 export const ProfitTracker: React.FC = () => {
   const { positions, removePosition, investmentLimit, isValid } = useAccountStore();
-  const { i18n } = useTranslation();
   const [analyzingId, setAnalyzingId] = useState<number | null>(null);
   const [aiReport, setAiReport] = useState<Record<number, any>>({});
 
@@ -45,7 +43,7 @@ export const ProfitTracker: React.FC = () => {
         sellsQty: prices[0]?.sells.quantity || 0
       };
 
-      const report = await aiService.analyzeItem(currentMarket as any, listings, investmentLimit, i18n.language);
+      const report = await aiService.analyzeItem(currentMarket as any, listings, investmentLimit);
       setAiReport(prev => ({ ...prev, [item.item_id || item.itemId]: report }));
     } catch (err) {
       console.error(err);
