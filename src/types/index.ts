@@ -40,6 +40,14 @@ export interface MarketItem extends GW2Item {
   isPinned?: boolean;
   isManipulated?: boolean;
   liquidityScore?: number;
+  
+  // Scouting Metrics
+  sold24h?: number;
+  bought24h?: number;
+  offersCount?: number;
+  bidsCount?: number;
+  supplyChange24h?: number;
+  demandChange24h?: number;
 }
 
 export interface SearchResult {

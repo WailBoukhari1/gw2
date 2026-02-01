@@ -77,7 +77,7 @@ export const DailyTradePlan: React.FC<Props> = ({ items }) => {
          };
       })
       .sort((a, b) => b.logicScore - a.logicScore)
-      .slice(0, 10);
+      .slice(0, 50);
 
     const analyzed = await Promise.all(candidates.map(async (item) => {
         let aiResult = { recommendation: "Stable", reasoning: "Market depth verified." };

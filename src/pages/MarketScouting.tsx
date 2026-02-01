@@ -31,6 +31,8 @@ import { useTranslation } from 'react-i18next';
 
 import { useMarketStore } from '../store/useMarketStore';
 import { formatDistanceToNow } from 'date-fns';
+import { CurrencyDisplay } from '../components/CurrencyDisplay';
+import { ProfitTierMatrix } from '../components/ProfitTierMatrix';
 
 const PRESETS = [
   { id: 't6', name: 'T6 Material Matrix', icon: Flame, query: 'high volume tier 6', color: 'text-orange-400', filter: { minRoi: 5, minDemand: 1000, category: 'CraftingMaterial' } },
@@ -51,7 +53,8 @@ export const MarketScouting: React.FC = () => {
     isPaused, 
     setPaused, 
     startBackgroundScan,
-    lastFullScan 
+    lastFullScan,
+    scanProgress
   } = useMarketStore();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -67,7 +70,7 @@ export const MarketScouting: React.FC = () => {
   const [minDemand, setMinDemand] = useState(0);
   const [rarityFilter, setRarityFilter] = useState<string[]>([]);
   const [categoryFilter, setCategoryFilter] = useState<string[]>([]);
-  const [sortBy, setSortBy] = useState<'roi' | 'profit' | 'demand' | 'score'>('score');
+  const [sortBy, setSortBy] = useState<'roi' | 'profit' | 'demand' | 'score' | 'sold' | 'bought' | 'offers' | 'bids'>('score');
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -89,6 +92,10 @@ export const MarketScouting: React.FC = () => {
         if (sortBy === 'roi') return b.roi - a.roi;
         if (sortBy === 'profit') return b.profitPerUnit - a.profitPerUnit;
         if (sortBy === 'demand') return b.buysQty - a.buysQty;
+        if (sortBy === 'sold') return (b.sold24h || 0) - (a.sold24h || 0);
+        if (sortBy === 'bought') return (b.bought24h || 0) - (a.bought24h || 0);
+        if (sortBy === 'offers') return (b.offersCount || 0) - (a.offersCount || 0);
+        if (sortBy === 'bids') return (b.bidsCount || 0) - (a.bidsCount || 0);
         return b.priorityScore - a.priorityScore;
       });
   }, [items, debouncedSearchTerm, minRoi, minProfit, minDemand, rarityFilter, categoryFilter, sortBy]);
@@ -186,6 +193,25 @@ export const MarketScouting: React.FC = () => {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
+             {/* Progress Indicator */}
+             {scanProgress && (
+                <div className="flex flex-col items-end mr-4">
+                   <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[8px] font-black text-indigo-400 uppercase tracking-widest">Syncing Matrix...</span>
+                      <span className="text-[9px] font-bold text-white font-mono">
+                        {Math.round((scanProgress.current / scanProgress.total) * 100)}%
+                      </span>
+                   </div>
+                   <div className="w-48 h-1 bg-white/5 rounded-full overflow-hidden border border-white/5">
+                      <motion.div 
+                        className="h-full bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.5)]"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${(scanProgress.current / scanProgress.total) * 100}%` }}
+                      />
+                   </div>
+                </div>
+             )}
+
              <div className="flex bg-black/40 p-1 rounded-2xl border border-white/5">
                 <button 
                   onClick={() => setViewMode('grid')}
@@ -228,22 +254,26 @@ export const MarketScouting: React.FC = () => {
       </header>
 
       {/* Preset Bar */}
-      <div className="flex overflow-x-auto pb-4 gap-4 no-scrollbar">
-         {PRESETS.map((preset) => (
-           <button
-             key={preset.id}
-             onClick={() => applyPreset(preset)}
-             className="flex-shrink-0 flex items-center gap-4 bg-slate-900/60 border border-white/5 p-4 rounded-3xl hover:bg-slate-800 transition-all group min-w-[220px]"
-           >
-              <div className={clsx("p-3 rounded-2xl bg-white/5 transition-transform group-hover:scale-110", preset.color)}>
-                 <preset.icon size={20} />
-              </div>
-              <div className="flex flex-col items-start">
-                 <span className="text-[10px] font-black text-white uppercase tracking-widest mb-1">{preset.name}</span>
-                 <span className="text-[8px] font-bold text-slate-500 uppercase">Preset Protocol</span>
-              </div>
-           </button>
-         ))}
+      <div className="flex flex-col gap-6">
+         <ProfitTierMatrix />
+         
+         <div className="flex overflow-x-auto pb-4 gap-4 no-scrollbar mt-4">
+            {PRESETS.map((preset) => (
+              <button
+                key={preset.id}
+                onClick={() => applyPreset(preset)}
+                className="flex-shrink-0 flex items-center gap-4 bg-slate-900/60 border border-white/5 p-4 rounded-3xl hover:bg-slate-800 transition-all group min-w-[220px]"
+              >
+                 <div className={clsx("p-3 rounded-2xl bg-white/5 transition-transform group-hover:scale-110", preset.color)}>
+                    <preset.icon size={20} />
+                 </div>
+                 <div className="flex flex-col items-start">
+                    <span className="text-[10px] font-black text-white uppercase tracking-widest mb-1">{preset.name}</span>
+                    <span className="text-[8px] font-bold text-slate-500 uppercase">Preset Protocol</span>
+                 </div>
+              </button>
+            ))}
+         </div>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-8 items-start">
@@ -377,7 +407,9 @@ export const MarketScouting: React.FC = () => {
                   { id: 'score', icon: BarChart3, label: 'Score' },
                   { id: 'roi', icon: Zap, label: 'ROI' },
                   { id: 'profit', icon: Hammer, label: 'Profit' },
-                  { id: 'demand', icon: TrendingUp, label: 'Demand' }
+                  { id: 'demand', icon: TrendingUp, label: 'Demand' },
+                  { id: 'sold', icon: Flame, label: 'Sold' },
+                  { id: 'offers', icon: Target, label: 'Offers' }
                 ].map(sort => (
                   <button
                     key={sort.id}
@@ -439,9 +471,26 @@ export const MarketScouting: React.FC = () => {
                <div className="min-h-[600px] relative">
                   {/* Dynamic Grid vs List View */}
                   <div className={clsx(
-                    "grid gap-4 transition-all",
-                    viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2 xl:grid-cols-3" : "grid-cols-1"
+                    "transition-all",
+                    viewMode === 'grid' ? "grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3" : "flex flex-col gap-1 overflow-x-auto"
                   )}>
+                    {viewMode === 'list' && (
+                       <div className="flex items-center bg-slate-900/80 border border-white/5 rounded-t-2xl p-4 text-[9px] font-black text-slate-500 uppercase tracking-widest min-w-[1200px]">
+                          <div className="w-12" />
+                          <div className="flex-1 min-w-[200px]">Asset Name</div>
+                          <div className="w-32 text-center">Sell (Gold)</div>
+                          <div className="w-32 text-center">Buy (Gold)</div>
+                          <div className="w-24 text-center">Profit</div>
+                          <div className="w-20 text-center">ROI</div>
+                          <div className="w-24 text-center">Supply</div>
+                          <div className="w-24 text-center">Demand</div>
+                          <div className="w-20 text-center text-emerald-500">Sold</div>
+                          <div className="w-20 text-center text-indigo-500">Offers</div>
+                          <div className="w-20 text-center text-amber-500">Bought</div>
+                          <div className="w-20 text-center text-rose-500">Bids</div>
+                          <div className="w-12" />
+                       </div>
+                    )}
                     <AnimatePresence mode="popLayout">
                       {paginatedItems.map((item) => (
                         <motion.div
@@ -521,30 +570,56 @@ export const MarketScouting: React.FC = () => {
 };
 
 const CompactListItem: React.FC<{ item: any }> = ({ item }) => (
-  <div className="flex items-center justify-between p-4 bg-slate-900/60 hover:bg-slate-800/80 border border-white/5 rounded-2xl transition-all group overflow-hidden relative">
-     <div className="absolute left-0 top-0 w-1 h-full bg-indigo-500/50" />
-     <div className="flex items-center gap-6">
-        <img src={item.icon} className="w-10 h-10 rounded-xl border border-white/5 group-hover:scale-110 transition-transform" />
-        <div className="flex flex-col">
-           <span className="text-sm font-black text-white uppercase tracking-tight truncate max-w-xs">{item.name}</span>
-           <span className="text-[8px] font-bold text-slate-500 uppercase tracking-[0.2em]">{item.type} • {item.rarity}</span>
-        </div>
+  <div className="flex items-center p-4 bg-slate-900/40 hover:bg-slate-800/80 border-x border-b border-white/5 transition-all group min-w-[1200px] relative overflow-hidden">
+     <div className="w-12 flex items-center justify-center">
+        <img src={item.icon} className="w-8 h-8 rounded-lg border border-white/5 group-hover:scale-110 transition-transform bg-slate-800" />
+     </div>
+     
+     <div className="flex-1 min-w-[200px] flex flex-col ml-4">
+        <span className="text-[11px] font-black text-white uppercase tracking-tight truncate pr-4">{item.name}</span>
+        <span className="text-[7px] font-bold text-slate-600 uppercase tracking-widest">{item.type} • {item.rarity}</span>
      </div>
 
-     <div className="flex items-center gap-12">
-        <div className="flex flex-col items-center">
-           <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">ROI Score</span>
-           <span className="text-xs font-black text-emerald-400">+{item.roi.toFixed(1)}%</span>
-        </div>
-        <div className="flex flex-col items-center">
-           <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Market Vol</span>
-           <span className="text-xs font-black text-white">{item.buysQty.toLocaleString()}</span>
-        </div>
-        <div className="hidden lg:flex flex-col items-center">
-           <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Spread Gap</span>
-           <span className="text-xs font-black text-blue-400 italic">{(item.profitPerUnit / 100).toFixed(2)}s</span>
-        </div>
-        <button className="p-3 bg-indigo-500 hover:bg-indigo-400 text-white rounded-xl shadow-lg shadow-indigo-500/20 transition-all opacity-0 group-hover:opacity-100 -translate-x-4 group-hover:translate-x-0">
+     <div className="w-32 text-center text-[10px] font-mono font-bold text-slate-300">
+        <CurrencyDisplay amount={item.sellPrice} />
+     </div>
+
+     <div className="w-32 text-center text-[10px] font-mono font-bold text-slate-300">
+        <CurrencyDisplay amount={item.buyPrice} />
+     </div>
+
+     <div className="w-24 text-center text-[10px] font-mono font-bold text-emerald-400">
+        <CurrencyDisplay amount={item.profitPerUnit} hideIcons />
+     </div>
+
+     <div className="w-20 text-center">
+        <span className="text-[10px] font-black text-emerald-400">+{item.roi.toFixed(1)}%</span>
+     </div>
+
+     <div className="w-24 text-center text-[10px] font-bold text-slate-400">
+        {item.sellsQty.toLocaleString()}
+     </div>
+
+     <div className="w-24 text-center text-[10px] font-bold text-slate-400">
+        {item.buysQty.toLocaleString()}
+     </div>
+
+     {/* Extended Metrics */}
+     <div className="w-20 text-center text-[10px] font-black text-emerald-400/80">
+        {item.sold24h?.toLocaleString() || '0'}
+     </div>
+     <div className="w-20 text-center text-[10px] font-black text-indigo-400/80">
+        {item.offersCount?.toLocaleString() || '0'}
+     </div>
+     <div className="w-20 text-center text-[10px] font-black text-amber-400/80">
+        {item.bought24h?.toLocaleString() || '0'}
+     </div>
+     <div className="w-20 text-center text-[10px] font-black text-rose-400/80">
+        {item.bidsCount?.toLocaleString() || '0'}
+     </div>
+
+     <div className="w-12 flex justify-end">
+        <button className="p-2 bg-indigo-500 hover:bg-white text-white hover:text-indigo-600 rounded-lg transition-all active:scale-95 shadow-lg shadow-indigo-500/20">
            <ArrowRight size={14} />
         </button>
      </div>
