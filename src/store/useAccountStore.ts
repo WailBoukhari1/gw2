@@ -93,6 +93,7 @@ interface AccountState {
   addScoutLog: (message: string, type?: 'info' | 'brain' | 'alert') => void;
   exportData: () => Promise<string>;
   importData: (jsonData: string) => Promise<boolean>;
+  resetAll: () => void;
 }
 
 export const useAccountStore = create<AccountState>()(
@@ -438,6 +439,7 @@ export const useAccountStore = create<AccountState>()(
                   msg = `Sold 1x ${item?.name || 'item'} for ${(newSells[0].price / 10000).toFixed(2)}g!`;
                 } else {
                   const total = newSells.reduce((acc: number, s: any) => acc + (s.price * s.quantity), 0);
+                  msg = `Bulk Sell Success: ${newSells.length} orders filled for ${(total / 10000).toFixed(2)}g!`;
                 }
                 toast.success(msg);
                 newNotifs.unshift({ id: `sell-${updateLastSellId}`, type: 'sell', message: msg, timestamp: new Date().toISOString() });
