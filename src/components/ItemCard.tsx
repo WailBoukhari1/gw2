@@ -9,6 +9,7 @@ import { aiService } from '../services/ai.service';
 import { useAccountStore } from '../store/useAccountStore';
 import { STRATEGIES } from '../services/community-strategies.service';
 import { Modal } from './Modal';
+import { db } from '../services/db.service';
 
 interface Props {
   item: MarketItem;
@@ -127,15 +128,29 @@ export const ItemCard: React.FC<Props> = ({ item }) => {
     }
   };
 
+
   const handleAnalyze = async () => {
     setModalOpen(true);
     if (analysis) return; 
     
     setAnalyzing(true);
     try {
+      // 1. Check Cache
+      const cached = await db.aiResults.get(item.id);
+      if (cached && Date.now() - cached.timestamp < 1000 * 60 * 60 * 24) { // 24h cache
+         setAnalysis(cached.data);
+         setAnalyzing(false);
+         return;
+      }
+
+      // 2. Fetch Fresh
       const listings = await api.getListings(item.id);
       const result = await aiService.analyzeItem(item, listings, investmentLimit);
       setAnalysis(result);
+      
+      // 3. Save to DB
+      await db.aiResults.put({ itemId: item.id, timestamp: Date.now(), data: result });
+      
     } catch (err) {
       console.error(err);
     } finally {

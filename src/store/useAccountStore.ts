@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Position, InvestmentPlan, ShadowPosition, MarketItem } from '../types';
+import { db } from "../services/db.service";
 import { api } from "../services/api.service";
 
 interface AccountState {
@@ -90,7 +91,8 @@ interface AccountState {
   clearNotifications: () => void;
   scoutActivity: { message: string; type: 'info' | 'brain' | 'alert'; timestamp: string }[];
   addScoutLog: (message: string, type?: 'info' | 'brain' | 'alert') => void;
-  resetAll: () => void;
+  exportData: () => Promise<string>;
+  importData: (jsonData: string) => Promise<boolean>;
 }
 
 export const useAccountStore = create<AccountState>()(
@@ -436,10 +438,12 @@ export const useAccountStore = create<AccountState>()(
                   msg = `Sold 1x ${item?.name || 'item'} for ${(newSells[0].price / 10000).toFixed(2)}g!`;
                 } else {
                   const total = newSells.reduce((acc: number, s: any) => acc + (s.price * s.quantity), 0);
-                  msg = `Market Sale: ${newSells.length} items sold for ${(total / 10000).toFixed(2)}g total!`;
                 }
                 toast.success(msg);
                 newNotifs.unshift({ id: `sell-${updateLastSellId}`, type: 'sell', message: msg, timestamp: new Date().toISOString() });
+                
+                // ARCHIVE: Save to IndexedDB
+                await db.tradeHistory.bulkPut(newSells);
               }
             }
 
@@ -456,7 +460,15 @@ export const useAccountStore = create<AccountState>()(
                 }
                 toast.info(msg);
                 newNotifs.unshift({ id: `buy-${updateLastBuyId}`, type: 'buy', message: msg, timestamp: new Date().toISOString() });
+                
+                // ARCHIVE: Save to IndexedDB
+                await db.tradeHistory.bulkPut(newBuys);
               }
+            }
+            
+            // Sync Notifications to DB
+            if (newNotifs.length > tradeNotifications.length) {
+               await db.notifications.bulkPut(newNotifs);
             }
 
             set({ 
@@ -576,6 +588,65 @@ export const useAccountStore = create<AccountState>()(
         relianceScore: 10,
         relianceStrategy: 'supervised'
       }),
+      exportData: async () => {
+         const state = get();
+         const dbHistory = await db.tradeHistory.toArray();
+         const dbAI = await db.aiResults.toArray();
+         
+         const backup = {
+            version: 1,
+            timestamp: new Date().toISOString(),
+            store: {
+               // Settings & Preferences
+               apiKey: state.apiKey,
+               aiApiKey: state.aiApiKey,
+               pinnedIds: state.pinnedIds,
+               investmentLimit: state.investmentLimit,
+               aiFeatures: state.aiFeatures,
+               scoringDNA: state.scoringDNA,
+               
+               // Progress
+               realMaturityLevel: state.realMaturityLevel,
+               realLearningProgress: state.realLearningProgress,
+               
+               // Active Data
+               positions: state.positions,
+               investmentPlans: state.investmentPlans,
+            },
+            database: {
+               tradeHistory: dbHistory,
+               aiLearning: dbAI
+            }
+         };
+         return JSON.stringify(backup, null, 2);
+      },
+
+      importData: async (json: string) => {
+         try {
+            const backup = JSON.parse(json);
+            if (!backup.store || !backup.database) throw new Error("Invalid backup format");
+
+            // Restore Store State
+            set((state) => ({
+               ...state,
+               ...backup.store // overwrite matching keys
+            }));
+            
+            // Restore Database
+            await db.transaction('rw', db.tradeHistory, db.aiResults, async () => {
+               await db.tradeHistory.clear();
+               await db.tradeHistory.bulkPut(backup.database.tradeHistory || []);
+               
+               await db.aiResults.clear();
+               await db.aiResults.bulkPut(backup.database.aiLearning || []);
+            });
+
+            return true;
+         } catch (e) {
+            console.error("Import failed", e);
+            return false;
+         }
+      },
     }),
     {
       name: 'gw2-account-storage',

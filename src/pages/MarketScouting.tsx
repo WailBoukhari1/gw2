@@ -68,6 +68,10 @@ export const MarketScouting: React.FC = () => {
   const [minRoi, setMinRoi] = useState(0);
   const [minProfit, setMinProfit] = useState(0);
   const [minDemand, setMinDemand] = useState(0);
+  const [minSold, setMinSold] = useState(0);
+  const [minBought, setMinBought] = useState(0);
+  const [minOffers, setMinOffers] = useState(0);
+  const [minBids, setMinBids] = useState(0);
   const [rarityFilter, setRarityFilter] = useState<string[]>([]);
   const [categoryFilter, setCategoryFilter] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState<'roi' | 'profit' | 'demand' | 'score' | 'sold' | 'bought' | 'offers' | 'bids'>('score');
@@ -84,9 +88,13 @@ export const MarketScouting: React.FC = () => {
         const matchesRoi = item.roi >= minRoi;
         const matchesProfit = item.profitPerUnit >= minProfit;
         const matchesDemand = item.buysQty >= minDemand;
+        const matchesSold = (item.sold24h || 0) >= minSold;
+        const matchesBought = (item.bought24h || 0) >= minBought;
+        const matchesOffers = (item.offersCount || 0) >= minOffers;
+        const matchesBids = (item.bidsCount || 0) >= minBids;
         const matchesRarity = rarityFilter.length === 0 || rarityFilter.includes(item.rarity);
         const matchesCategory = categoryFilter.length === 0 || categoryFilter.includes(item.type);
-        return matchesSearch && matchesRoi && matchesProfit && matchesDemand && matchesRarity && matchesCategory;
+        return matchesSearch && matchesRoi && matchesProfit && matchesDemand && matchesSold && matchesBought && matchesOffers && matchesBids && matchesRarity && matchesCategory;
       })
       .sort((a, b) => {
         if (sortBy === 'roi') return b.roi - a.roi;
@@ -98,7 +106,7 @@ export const MarketScouting: React.FC = () => {
         if (sortBy === 'bids') return (b.bidsCount || 0) - (a.bidsCount || 0);
         return b.priorityScore - a.priorityScore;
       });
-  }, [items, debouncedSearchTerm, minRoi, minProfit, minDemand, rarityFilter, categoryFilter, sortBy]);
+  }, [items, debouncedSearchTerm, minRoi, minProfit, minDemand, minSold, minBought, minOffers, minBids, rarityFilter, categoryFilter, sortBy]);
 
   const paginatedItems = useMemo(() => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -321,6 +329,8 @@ export const MarketScouting: React.FC = () => {
               <ThresholdSlider label="ROI Floor" value={minRoi} max={100} unit="%" color="text-emerald-400" accent="accent-emerald-500" onChange={setMinRoi} />
               <ThresholdSlider label="Profit Target" value={minProfit} max={500000} step={10000} isGold unit="G" color="text-amber-400" accent="accent-amber-500" onChange={setMinProfit} />
               <ThresholdSlider label="Liquidity Bar" value={minDemand} max={5000} step={100} unit="Orders" color="text-blue-400" accent="accent-blue-500" onChange={setMinDemand} />
+              <ThresholdSlider label="Sold (24h)" value={minSold} max={1000} step={10} unit="Qty" color="text-emerald-400" accent="accent-emerald-500" onChange={setMinSold} />
+              <ThresholdSlider label="Offers (Supply)" value={minOffers} max={500} step={10} unit="Listings" color="text-indigo-400" accent="accent-indigo-500" onChange={setMinOffers} />
             </div>
 
             <div className="space-y-6">
@@ -363,7 +373,12 @@ export const MarketScouting: React.FC = () => {
               onClick={() => {
                 setMinRoi(0);
                 setMinProfit(0);
+                setMinProfit(0);
                 setMinDemand(0);
+                setMinSold(0);
+                setMinBought(0);
+                setMinOffers(0);
+                setMinBids(0);
                 setRarityFilter([]);
                 setCategoryFilter([]);
                 setSearchTerm('');

@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAccountStore } from '../store/useAccountStore';
-import { Settings as SettingsIcon, Brain, ToggleLeft, ToggleRight, ShieldCheck, Zap, LineChart, Calendar, Coins } from 'lucide-react';
+import { Settings as SettingsIcon, Brain, ToggleLeft, ToggleRight, ShieldCheck, Zap, LineChart, Calendar, Coins, Database, Download, Upload } from 'lucide-react';
 import clsx from 'clsx';
 import { useTranslation } from 'react-i18next';
 
@@ -13,7 +13,9 @@ export const SettingsPage: React.FC = () => {
     aiFeatures, 
     toggleAiFeature,
     clearMemory,
-    permissions
+    permissions,
+    exportData,
+    importData
   } = useAccountStore();
   
   const { t } = useTranslation();
@@ -181,6 +183,67 @@ export const SettingsPage: React.FC = () => {
                  </div>
               </div>
            </div>
+        </div>
+
+        {/* Data Management Section */}
+        <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-700/50">
+            <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+               <Database className="text-blue-400" />
+               Data Management
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+               <div className="bg-black/20 p-4 rounded-xl border border-white/5">
+                  <h3 className="font-bold text-slate-200 mb-2 flex items-center gap-2">
+                     <Download size={16} className="text-emerald-400" /> Export Backup
+                  </h3>
+                  <p className="text-xs text-slate-500 mb-4 h-10">
+                     Download a JSON file containing all your settings, positions, trade history, and AI learning data.
+                  </p>
+                  <button 
+                     onClick={async () => {
+                        const json = await exportData();
+                        const blob = new Blob([json], { type: 'application/json' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `gw2-baron-backup-${new Date().toISOString().split('T')[0]}.json`;
+                        a.click();
+                     }}
+                     className="w-full py-2 bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 border border-emerald-500/30 rounded-lg text-xs font-bold uppercase tracking-wider transition-all"
+                  >
+                     Download Backup
+                  </button>
+               </div>
+
+               <div className="bg-black/20 p-4 rounded-xl border border-white/5">
+                  <h3 className="font-bold text-slate-200 mb-2 flex items-center gap-2">
+                     <Upload size={16} className="text-amber-400" /> Import / Restore
+                  </h3>
+                  <p className="text-xs text-slate-500 mb-4 h-10">
+                     Restore data from a previous backup file. Warning: This will overwrite current data!
+                  </p>
+                  <label className="w-full py-2 bg-amber-600/20 hover:bg-amber-600/40 text-amber-400 border border-amber-500/30 rounded-lg text-xs font-bold uppercase tracking-wider transition-all text-center block cursor-pointer">
+                     Select File
+                     <input 
+                        type="file" 
+                        accept=".json"
+                        className="hidden"
+                        onChange={async (e) => {
+                           const file = e.target.files?.[0];
+                           if (!file) return;
+                           const text = await file.text();
+                           const success = await importData(text);
+                           if (success) {
+                              alert("Data restored successfully! The page will now reload.");
+                              window.location.reload();
+                           } else {
+                              alert("Failed to restore data. Check file format.");
+                           }
+                        }}
+                     />
+                  </label>
+               </div>
+            </div>
         </div>
 
         <div className="flex justify-end"> 
