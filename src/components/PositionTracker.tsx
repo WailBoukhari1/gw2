@@ -33,10 +33,45 @@ const PositionCard: React.FC<PositionCardProps> = ({ pos, liveItem, onRemove }) 
   const totalProfit = profitPerUnit * remainingQty;
   const roi = pos.buyPrice > 0 ? (profitPerUnit / pos.buyPrice) * 100 : 0;
   
-  const status = {
-    PHASE: pos.status.toUpperCase(),
-    COLOR: pos.status === 'completed' ? 'text-emerald-400' : pos.type === 'buy' ? 'text-blue-400' : 'text-amber-400'
+  const getStatusDetails = () => {
+    if (pos.status === 'completed') return { label: 'SOLD', color: 'text-emerald-400', pulse: false };
+    
+    const diffMinutes = (new Date().getTime() - new Date(pos.timestamp).getTime()) / 60000;
+    const isFresh = diffMinutes < 10;
+
+    if (pos.type === 'buy') {
+      if (pos.status === 'active') {
+        const isOutbid = liveItem && liveItem.buyPrice > pos.buyPrice;
+        if (isOutbid) return { label: 'OUTBID (BUY)', color: 'text-rose-400', pulse: true };
+        if (isPartial) return { label: 'FILLING BUY', color: 'text-blue-300', pulse: true };
+        if (isFresh) return { label: 'JUST STARTED', color: 'text-cyan-400', pulse: false };
+        return { label: 'BIDDING (BUY)', color: 'text-blue-400', pulse: false };
+      }
+    }
+    
+    if (pos.type === 'sell') {
+      if (pos.status === 'active') {
+        const isOutbid = liveItem && liveItem.sellPrice < (pos.sellPrice || 0);
+        if (isOutbid) return { label: 'OUTBID (SELL)', color: 'text-rose-400', pulse: true };
+        if (isPartial) return { label: 'FILLING SELL', color: 'text-amber-300', pulse: true };
+        if (isFresh) return { label: 'JUST LISTED', color: 'text-cyan-400', pulse: false };
+        return { label: 'BIDDING (SELL)', color: 'text-amber-400', pulse: false };
+      }
+      if (pos.status === 'holding') {
+        const currentSell = liveItem?.sellPrice || 0;
+        const profit = (currentSell * 0.85) - pos.buyPrice;
+        const roi = pos.buyPrice > 0 ? (profit / pos.buyPrice) * 100 : 0;
+        
+        if (roi < 0) return { label: 'PRICE DROPPED', color: 'text-rose-500', pulse: false };
+        if (roi > 12) return { label: 'TIME TO SELL!', color: 'text-indigo-400', pulse: true };
+        return { label: 'IN INVENTORY', color: 'text-emerald-500/80', pulse: false };
+      }
+    }
+    
+    return { label: pos.status.toUpperCase(), color: 'text-slate-400', pulse: false };
   };
+
+  const status = getStatusDetails();
 
   const handleAIAnalyze = async () => {
     if (!liveItem) return;
@@ -60,7 +95,13 @@ const PositionCard: React.FC<PositionCardProps> = ({ pos, liveItem, onRemove }) 
                <div className="flex flex-col min-w-0">
                   <h3 className="text-[10px] font-black text-white uppercase truncate tracking-tight">{pos.itemName}</h3>
                   <div className="flex items-center gap-1">
-                     <span className={clsx("text-[7px] font-black uppercase tracking-widest", status.COLOR)}>{status.PHASE}</span>
+                     <span className={clsx(
+                       "text-[7px] font-black uppercase tracking-widest px-1 rounded-[1px]",
+                       status.color,
+                       status.pulse && "animate-pulse shadow-[0_0_8px_rgba(255,255,255,0.1)]"
+                     )}>
+                       {status.label}
+                     </span>
                   </div>
                </div>
             </div>
